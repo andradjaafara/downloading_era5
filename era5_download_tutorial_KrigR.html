@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.55">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Bimandra Djaafara">
+<meta name="dcterms.date" content="2025-07-05">
+
+<title>Downloading and Processing ERA5 Climate Data with KrigR in R</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="era5_download_tutorial_KrigR_files/libs/clipboard/clipboard.min.js"></script>
+<script src="era5_download_tutorial_KrigR_files/libs/quarto-html/quarto.js"></script>
+<script src="era5_download_tutorial_KrigR_files/libs/quarto-html/popper.min.js"></script>
+<script src="era5_download_tutorial_KrigR_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="era5_download_tutorial_KrigR_files/libs/quarto-html/anchor.min.js"></script>
+<link href="era5_download_tutorial_KrigR_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="era5_download_tutorial_KrigR_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="era5_download_tutorial_KrigR_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="era5_download_tutorial_KrigR_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="era5_download_tutorial_KrigR_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article toc-left">
+<div id="quarto-sidebar-toc-left" class="sidebar toc-left">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
+  <li><a href="#prerequisites" id="toc-prerequisites" class="nav-link" data-scroll-target="#prerequisites">Prerequisites</a></li>
+  <li><a href="#loading-required-packages" id="toc-loading-required-packages" class="nav-link" data-scroll-target="#loading-required-packages">Loading Required Packages</a></li>
+  <li><a href="#setting-up-your-credentials" id="toc-setting-up-your-credentials" class="nav-link" data-scroll-target="#setting-up-your-credentials">Setting Up Your Credentials</a>
+  <ul class="collapse">
+  <li><a href="#getting-your-api-credentials" id="toc-getting-your-api-credentials" class="nav-link" data-scroll-target="#getting-your-api-credentials">Getting Your API Credentials</a></li>
+  <li><a href="#setting-up-your-environment" id="toc-setting-up-your-environment" class="nav-link" data-scroll-target="#setting-up-your-environment">Setting Up Your Environment</a></li>
+  </ul></li>
+  <li><a href="#preparing-spatial-boundaries" id="toc-preparing-spatial-boundaries" class="nav-link" data-scroll-target="#preparing-spatial-boundaries">Preparing Spatial Boundaries</a>
+  <ul class="collapse">
+  <li><a href="#visualizing-the-study-area" id="toc-visualizing-the-study-area" class="nav-link" data-scroll-target="#visualizing-the-study-area">Visualizing the Study Area</a></li>
+  <li><a href="#setting-the-spatial-extent" id="toc-setting-the-spatial-extent" class="nav-link" data-scroll-target="#setting-the-spatial-extent">Setting the Spatial Extent</a></li>
+  </ul></li>
+  <li><a href="#downloading-climate-data" id="toc-downloading-climate-data" class="nav-link" data-scroll-target="#downloading-climate-data">Downloading Climate Data</a>
+  <ul class="collapse">
+  <li><a href="#temperature-data" id="toc-temperature-data" class="nav-link" data-scroll-target="#temperature-data">Temperature Data</a></li>
+  <li><a href="#precipitation-data" id="toc-precipitation-data" class="nav-link" data-scroll-target="#precipitation-data">Precipitation Data</a></li>
+  <li><a href="#dewpoint-temperature-for-relative-humidity" id="toc-dewpoint-temperature-for-relative-humidity" class="nav-link" data-scroll-target="#dewpoint-temperature-for-relative-humidity">Dewpoint Temperature (for Relative Humidity)</a></li>
+  </ul></li>
+  <li><a href="#calculating-relative-humidity" id="toc-calculating-relative-humidity" class="nav-link" data-scroll-target="#calculating-relative-humidity">Calculating Relative Humidity</a></li>
+  <li><a href="#advanced-data-processing" id="toc-advanced-data-processing" class="nav-link" data-scroll-target="#advanced-data-processing">Advanced Data Processing</a>
+  <ul class="collapse">
+  <li><a href="#population-weighted-aggregation" id="toc-population-weighted-aggregation" class="nav-link" data-scroll-target="#population-weighted-aggregation">Population-Weighted Aggregation</a></li>
+  <li><a href="#applying-the-summary-functions" id="toc-applying-the-summary-functions" class="nav-link" data-scroll-target="#applying-the-summary-functions">Applying the Summary Functions</a></li>
+  </ul></li>
+  <li><a href="#key-points-and-best-practices" id="toc-key-points-and-best-practices" class="nav-link" data-scroll-target="#key-points-and-best-practices">Key Points and Best Practices</a>
+  <ul class="collapse">
+  <li><a href="#variable-selection" id="toc-variable-selection" class="nav-link" data-scroll-target="#variable-selection">Variable Selection</a></li>
+  <li><a href="#time-zones" id="toc-time-zones" class="nav-link" data-scroll-target="#time-zones">Time Zones</a></li>
+  <li><a href="#file-management" id="toc-file-management" class="nav-link" data-scroll-target="#file-management">File Management</a></li>
+  <li><a href="#performance-considerations" id="toc-performance-considerations" class="nav-link" data-scroll-target="#performance-considerations">Performance Considerations</a></li>
+  <li><a href="#data-quality" id="toc-data-quality" class="nav-link" data-scroll-target="#data-quality">Data Quality</a></li>
+  </ul></li>
+  <li><a href="#additional-resources" id="toc-additional-resources" class="nav-link" data-scroll-target="#additional-resources">Additional Resources</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">Conclusion</a></li>
+  </ul>
+</nav>
+</div>
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Downloading and Processing ERA5 Climate Data with KrigR in R</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Bimandra Djaafara </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">July 5, 2025</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<p>This tutorial provides a practical guide for downloading and processing ERA5 climate data using the KrigR package in R. While there’s already an extensive tutorial by the package creator <a href="https://www.erikkusch.com/courses/krigr/">here</a>, along with <a href="https://github.com/ErikKusch/KrigR">GitHub documentation</a> and a <a href="https://iopscience.iop.org/article/10.1088/1748-9326/ac48b3">scientific publication</a>, this tutorial aims to make the process more accessible and addresses some package updates not covered in the original documentation.</p>
+<p>This tutorial is focused on specific use cases and doesn’t cover all package capabilities. I encourage reading the comprehensive documentation for a complete understanding of KrigR’s features.</p>
+</section>
+<section id="prerequisites" class="level2">
+<h2 class="anchored" data-anchor-id="prerequisites">Prerequisites</h2>
+<p>Before starting, you’ll need:</p>
+<ol type="1">
+<li>An account on the <a href="https://cds.climate.copernicus.eu/">Copernicus Climate Data Store</a></li>
+<li>Your API credentials (username and API key)</li>
+<li>Basic knowledge of R and spatial data</li>
+<li>Download all the data you needed for this tutorial from <a href="https://github.com/andradjaafara/downloading_era5">here</a></li>
+</ol>
+</section>
+<section id="loading-required-packages" class="level2">
+<h2 class="anchored" data-anchor-id="loading-required-packages">Loading Required Packages</h2>
+<p>First, let’s load all the necessary packages:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(KrigR)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lubridate)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sf)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(terra)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="setting-up-your-credentials" class="level2">
+<h2 class="anchored" data-anchor-id="setting-up-your-credentials">Setting Up Your Credentials</h2>
+<section id="getting-your-api-credentials" class="level3">
+<h3 class="anchored" data-anchor-id="getting-your-api-credentials">Getting Your API Credentials</h3>
+<ol type="1">
+<li>Visit <a href="https://cds.climate.copernicus.eu/" class="uri">https://cds.climate.copernicus.eu/</a></li>
+<li>Click “Login/Register” and create an account if you haven’t already</li>
+<li>Once logged in, click “Your Profile” in the top right</li>
+<li>Copy your API Token</li>
+</ol>
+</section>
+<section id="setting-up-your-environment" class="level3">
+<h3 class="anchored" data-anchor-id="setting-up-your-environment">Setting Up Your Environment</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Replace with your actual credentials</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>API_User <span class="ot">&lt;-</span> <span class="st">"enter.your.email@gmail.com"</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>API_Key <span class="ot">&lt;-</span> <span class="st">"enter-your-api-token"</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Set your output directory</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>dir_data <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="fu">getwd</span>(), <span class="st">"output/"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="preparing-spatial-boundaries" class="level2">
+<h2 class="anchored" data-anchor-id="preparing-spatial-boundaries">Preparing Spatial Boundaries</h2>
+<p>For this example, we’ll use Jakarta, Indonesia as our study area. The shapefiles used are from <a href="https://data.humdata.org/dataset/geoboundaries-admin-boundaries-for-indonesia">HDX GeoBoundaries</a>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Read administrative boundary shapefiles</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>admin1_shp <span class="ot">&lt;-</span> <span class="fu">read_sf</span>(<span class="at">dsn=</span><span class="st">"data/shapefiles/admin1"</span>, </span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>                      <span class="at">layer=</span><span class="st">"admin1_34"</span>, </span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>                      <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>admin2_shp <span class="ot">&lt;-</span> <span class="fu">read_sf</span>(<span class="at">dsn=</span><span class="st">"data/shapefiles/admin2"</span>, </span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>                      <span class="at">layer=</span><span class="st">"admin2_34"</span>, </span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>                      <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Filter for Jakarta (excluding Thousand Islands district)</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>jakarta_shp <span class="ot">&lt;-</span> admin1_shp <span class="sc">%&gt;%</span> <span class="fu">filter</span>(shapeName <span class="sc">==</span> <span class="st">"Jakarta"</span>)</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>jakarta_admin2_shp <span class="ot">&lt;-</span> admin2_shp <span class="sc">%&gt;%</span> <span class="fu">filter</span>(admin1 <span class="sc">==</span> <span class="st">"DKI JAKARTA"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="visualizing-the-study-area" class="level3">
+<h3 class="anchored" data-anchor-id="visualizing-the-study-area">Visualizing the Study Area</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check Jakarta province boundary</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> jakarta_shp) <span class="sc">+</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Jakarta Province Boundary"</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Check Jakarta with districts (including Thousand Islands)</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> jakarta_shp) <span class="sc">+</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>(<span class="at">data =</span> jakarta_admin2_shp, <span class="at">fill =</span> <span class="st">"lightblue"</span>, <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Jakarta with Administrative Districts"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="setting-the-spatial-extent" class="level3">
+<h3 class="anchored" data-anchor-id="setting-the-spatial-extent">Setting the Spatial Extent</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get the bounding box for Jakarta (excluding Thousand Islands)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>jakarta_extent <span class="ot">&lt;-</span> <span class="fu">ext</span>(<span class="fu">st_bbox</span>(jakarta_shp))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="downloading-climate-data" class="level2">
+<h2 class="anchored" data-anchor-id="downloading-climate-data">Downloading Climate Data</h2>
+<section id="temperature-data" class="level3">
+<h3 class="anchored" data-anchor-id="temperature-data">Temperature Data</h3>
+<p>Let’s start with downloading 2-meter air temperature data:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>download_temperature_jkt <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>({</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">CDownloadS</span>(</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="do">## Variable and Data Product</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">Variable =</span> <span class="st">"2m_temperature"</span>,</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">DataSet =</span> <span class="st">"reanalysis-era5-land"</span>,</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="do">## Time Window</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">DateStart =</span> <span class="st">"2022-08-01 00:00:00"</span>,</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">DateStop =</span> <span class="st">"2022-09-30 23:00:00"</span>,</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">TZone =</span> <span class="st">"Etc/GMT+7"</span>,  <span class="co"># GMT+7 for Indonesia</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    <span class="do">## Temporal Aggregation</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">TResolution =</span> <span class="st">"day"</span>,</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">TStep =</span> <span class="dv">1</span>,</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">FUN =</span> <span class="st">"mean"</span>,</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="do">## Spatial Limiting</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">Extent =</span> jakarta_extent,</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>    <span class="do">## File Storing</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">Dir =</span> dir_data,</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    <span class="at">FileName =</span> <span class="st">"download_temperature_jkt"</span>,</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    <span class="do">## API User Credentials</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">API_User =</span> API_User,</span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">API_Key =</span> API_Key</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>}, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Handle the common metadata writing error</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Metadata writing failed, but attempting to load created file...</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>  file_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(dir_data, <span class="st">"download_temperature_jkt.nc"</span>)</span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">file.exists</span>(file_path)) {</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">"Successfully loaded data despite metadata error!</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(terra<span class="sc">::</span><span class="fu">rast</span>(file_path))</span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"Data file was not created: "</span>, e<span class="sc">$</span>message)</span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a><span class="co"># Check the downloaded data</span></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>download_temperature_jkt</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="callout callout-style-default callout-important callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Important
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Common Issue</strong>: You may encounter an error during the download process, but the data is usually downloaded successfully. The <code>tryCatch</code> wrapper handles this by loading the created NetCDF file even if metadata writing fails.</p>
+</div>
+</div>
+</section>
+<section id="precipitation-data" class="level3">
+<h3 class="anchored" data-anchor-id="precipitation-data">Precipitation Data</h3>
+<p>Precipitation data requires special handling because it’s recorded cumulatively:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>download_precipitation_jkt <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>({</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">CDownloadS</span>(</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">Variable =</span> <span class="st">"total_precipitation"</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">CumulVar =</span> <span class="cn">TRUE</span>,  <span class="co"># Important for precipitation data</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">DataSet =</span> <span class="st">"reanalysis-era5-land"</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">DateStart =</span> <span class="st">"2022-08-01 00:00:00"</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">DateStop =</span> <span class="st">"2022-09-30 23:00:00"</span>,</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">TZone =</span> <span class="st">"Etc/GMT+7"</span>,</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">TResolution =</span> <span class="st">"day"</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">TStep =</span> <span class="dv">1</span>,</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">FUN =</span> <span class="st">"sum"</span>,  <span class="co"># Use sum for precipitation</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">Extent =</span> jakarta_shp,  <span class="co"># Can use shapefile directly</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">Dir =</span> dir_data,</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">FileName =</span> <span class="st">"download_precipitation_jkt"</span>,</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">API_User =</span> API_User,</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">API_Key =</span> API_Key</span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>}, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Metadata writing failed, but attempting to load created file...</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>  file_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(dir_data, <span class="st">"download_precipitation_jkt.nc"</span>)</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">file.exists</span>(file_path)) {</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">"Successfully loaded data despite metadata error!</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(terra<span class="sc">::</span><span class="fu">rast</span>(file_path))</span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"Data file was not created: "</span>, e<span class="sc">$</span>message)</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="callout callout-style-default callout-warning callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Warning
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Processing Time</strong>: Precipitation data takes significantly longer to process due to the disaggregation of cumulative hourly data. For large datasets (e.g., annual data), consider using high-performance computing resources.</p>
+</div>
+</div>
+</section>
+<section id="dewpoint-temperature-for-relative-humidity" class="level3">
+<h3 class="anchored" data-anchor-id="dewpoint-temperature-for-relative-humidity">Dewpoint Temperature (for Relative Humidity)</h3>
+<p>Relative humidity isn’t directly available and must be calculated from temperature and dewpoint temperature:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>download_dewpoint_temperature_jkt <span class="ot">&lt;-</span> <span class="fu">tryCatch</span>({</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">CDownloadS</span>(</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">Variable =</span> <span class="st">"2m_dewpoint_temperature"</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">DataSet =</span> <span class="st">"reanalysis-era5-land"</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">DateStart =</span> <span class="st">"2022-08-01 00:00:00"</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">DateStop =</span> <span class="st">"2022-09-30 23:00:00"</span>,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">TZone =</span> <span class="st">"Etc/GMT+7"</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">TResolution =</span> <span class="st">"day"</span>,</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">TStep =</span> <span class="dv">1</span>,</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">FUN =</span> <span class="st">"mean"</span>,</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">Extent =</span> jakarta_extent,</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">Dir =</span> dir_data,</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">FileName =</span> <span class="st">"download_dewpoint_temperature_jkt"</span>,</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">API_User =</span> API_User,</span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">API_Key =</span> API_Key</span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>}, <span class="at">error =</span> <span class="cf">function</span>(e) {</span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Metadata writing failed, but attempting to load created file...</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>  file_path <span class="ot">&lt;-</span> <span class="fu">file.path</span>(dir_data, <span class="st">"download_dewpoint_temperature_jkt.nc"</span>)</span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">file.exists</span>(file_path)) {</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">"Successfully loaded data despite metadata error!</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(terra<span class="sc">::</span><span class="fu">rast</span>(file_path))</span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">stop</span>(<span class="st">"Data file was not created: "</span>, e<span class="sc">$</span>message)</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="calculating-relative-humidity" class="level2">
+<h2 class="anchored" data-anchor-id="calculating-relative-humidity">Calculating Relative Humidity</h2>
+<p>Since relative humidity isn’t directly available, we calculate it using the Magnus formula:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to calculate relative humidity</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>calculate_relative_humidity <span class="ot">&lt;-</span> <span class="cf">function</span>(T_raster, Td_raster) {</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Convert from Kelvin to Celsius</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  T_celsius <span class="ot">&lt;-</span> T_raster <span class="sc">-</span> <span class="fl">273.15</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  Td_celsius <span class="ot">&lt;-</span> Td_raster <span class="sc">-</span> <span class="fl">273.15</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate relative humidity using Magnus formula</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="co"># RH = 100 * exp((17.625 * Td)/(243.04 + Td)) / exp((17.625 * T)/(243.04 + T))</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate saturation vapor pressure for dewpoint temperature</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  es_td <span class="ot">&lt;-</span> <span class="fu">exp</span>((<span class="fl">17.625</span> <span class="sc">*</span> Td_celsius) <span class="sc">/</span> (<span class="fl">243.04</span> <span class="sc">+</span> Td_celsius))</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate saturation vapor pressure for air temperature  </span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  es_t <span class="ot">&lt;-</span> <span class="fu">exp</span>((<span class="fl">17.625</span> <span class="sc">*</span> T_celsius) <span class="sc">/</span> (<span class="fl">243.04</span> <span class="sc">+</span> T_celsius))</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate relative humidity (as percentage)</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  RH_raster <span class="ot">&lt;-</span> <span class="dv">100</span> <span class="sc">*</span> (es_td <span class="sc">/</span> es_t)</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Set names to match input raster names</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">names</span>(RH_raster) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"RH_"</span>, <span class="fu">names</span>(T_raster))</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Copy time information if it exists</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(terra<span class="sc">::</span><span class="fu">time</span>(T_raster))) {</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    terra<span class="sc">::</span><span class="fu">time</span>(RH_raster) <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">time</span>(T_raster)</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(RH_raster)</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a><span class="co"># Load the NetCDF files as rasters</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>temperature_file <span class="ot">&lt;-</span> <span class="fu">file.path</span>(dir_data, <span class="st">"download_temperature_jkt.nc"</span>)</span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>temperature_raster <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(temperature_file)</span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>dewpoint_temperature_file <span class="ot">&lt;-</span> <span class="fu">file.path</span>(dir_data, <span class="st">"download_dewpoint_temperature_jkt.nc"</span>)</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>dewpoint_temperature_raster <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(dewpoint_temperature_file)</span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate relative humidity</span></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>relative_humidity_jkt <span class="ot">&lt;-</span> <span class="fu">calculate_relative_humidity</span>(temperature_raster, </span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>                                                     dewpoint_temperature_raster)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="callout callout-style-default callout-tip callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Tip
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>Formula Reference</strong>: The relative humidity calculation uses the Magnus formula as described in <a href="https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2022GL099740">Guido et al.&nbsp;(2022)</a>.</p>
+</div>
+</div>
+</section>
+<section id="advanced-data-processing" class="level2">
+<h2 class="anchored" data-anchor-id="advanced-data-processing">Advanced Data Processing</h2>
+<section id="population-weighted-aggregation" class="level3">
+<h3 class="anchored" data-anchor-id="population-weighted-aggregation">Population-Weighted Aggregation</h3>
+<p>For more sophisticated analysis, you can aggregate climate data using population weights. This section shows how to create monthly summaries weighted by population density.</p>
+<section id="helper-function-for-population-alignment" class="level4">
+<h4 class="anchored" data-anchor-id="helper-function-for-population-alignment">Helper Function for Population Alignment</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to align population resolution to climate data resolution</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Method from: https://climateestimate.net/content/weighting-schemes.html</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>align_population_to_climate <span class="ot">&lt;-</span> <span class="cf">function</span>(pop_raster, climate_raster) {</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Get resolutions</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  pop_res <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">res</span>(pop_raster)[<span class="dv">1</span>]  <span class="co"># 0.008333333</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>  climate_res <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">res</span>(climate_raster)[<span class="dv">1</span>]  <span class="co"># 0.1</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Population resolution:"</span>, pop_res, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Climate resolution:"</span>, climate_res, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate resolution ratio</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>  res_ratio <span class="ot">&lt;-</span> climate_res <span class="sc">/</span> pop_res</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">"Resolution ratio:"</span>, res_ratio, <span class="st">"</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 1: Crop population to climate extent first</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>  climate_ext <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">ext</span>(climate_raster)</span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>  pop_cropped <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">crop</span>(pop_raster, climate_ext)</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 2: Check for grid alignment</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  climate_xmin <span class="ot">&lt;-</span> climate_ext[<span class="dv">1</span>]</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  climate_ymin <span class="ot">&lt;-</span> climate_ext[<span class="dv">3</span>]</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  pop_ext <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">ext</span>(pop_cropped)</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  x_offset <span class="ot">&lt;-</span> (climate_xmin <span class="sc">-</span> pop_ext[<span class="dv">1</span>]) <span class="sc">/</span> pop_res</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>  y_offset <span class="ot">&lt;-</span> (climate_ymin <span class="sc">-</span> pop_ext[<span class="dv">3</span>]) <span class="sc">/</span> pop_res</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  x_fractional <span class="ot">&lt;-</span> x_offset <span class="sc">-</span> <span class="fu">floor</span>(x_offset)</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>  y_fractional <span class="ot">&lt;-</span> y_offset <span class="sc">-</span> <span class="fu">floor</span>(y_offset)</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">abs</span>(x_fractional) <span class="sc">&gt;</span> <span class="fl">0.01</span> <span class="sc">||</span> <span class="fu">abs</span>(y_fractional) <span class="sc">&gt;</span> <span class="fl">0.01</span>) {</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">"Grid misalignment detected, disaggregating...</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Disaggregate by factor of 2 to align grids</span></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>    disagg_factor <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>    pop_disagg <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">disagg</span>(pop_cropped, <span class="at">fact =</span> disagg_factor) <span class="sc">/</span> (disagg_factor<span class="sc">^</span><span class="dv">2</span>)</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>    pop_disagg <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">crop</span>(pop_disagg, climate_ext)</span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>    new_pop_res <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">res</span>(pop_disagg)[<span class="dv">1</span>]</span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>    agg_factor <span class="ot">&lt;-</span> <span class="fu">round</span>(climate_res <span class="sc">/</span> new_pop_res)</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">"Grids already aligned, no disaggregation needed</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>    pop_disagg <span class="ot">&lt;-</span> pop_cropped</span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>    agg_factor <span class="ot">&lt;-</span> <span class="fu">round</span>(res_ratio)</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 3: Aggregate to match climate resolution</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (agg_factor <span class="sc">&gt;</span> <span class="dv">1</span>) {</span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>    pop_aligned <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">aggregate</span>(pop_disagg, <span class="at">fact =</span> agg_factor, <span class="at">fun =</span> sum, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>    pop_aligned <span class="ot">&lt;-</span> pop_disagg</span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 4: Final alignment</span></span>
+<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a>  pop_final <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">crop</span>(pop_aligned, climate_ext)</span>
+<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="sc">!</span><span class="fu">identical</span>(terra<span class="sc">::</span><span class="fu">ext</span>(pop_final), terra<span class="sc">::</span><span class="fu">ext</span>(climate_raster))) {</span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">"Final resampling for perfect alignment...</span><span class="sc">\n</span><span class="st">"</span>)</span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a>    pop_final <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">resample</span>(pop_final, climate_raster, <span class="at">method =</span> <span class="st">"near"</span>)</span>
+<span id="cb10-60"><a href="#cb10-60" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb10-61"><a href="#cb10-61" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-62"><a href="#cb10-62" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Step 5: Set minimum population to avoid zero weights</span></span>
+<span id="cb10-63"><a href="#cb10-63" aria-hidden="true" tabindex="-1"></a>  pop_final[pop_final <span class="sc">==</span> <span class="dv">0</span>] <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb10-64"><a href="#cb10-64" aria-hidden="true" tabindex="-1"></a>  pop_final[<span class="fu">is.na</span>(pop_final)] <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb10-65"><a href="#cb10-65" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(pop_final)</span>
+<span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="monthly-temperature-summary-function" class="level4">
+<h4 class="anchored" data-anchor-id="monthly-temperature-summary-function">Monthly Temperature Summary Function</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>temperature_monthly_summary <span class="ot">&lt;-</span> <span class="cf">function</span>(data, admin_shp, <span class="at">pop_raster =</span> <span class="cn">NULL</span>){</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Get dates and create month-year labels</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  dates <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">time</span>(data)</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>  months <span class="ot">&lt;-</span> <span class="fu">format</span>(dates, <span class="st">"%Y-%m"</span>)</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  unique_months <span class="ot">&lt;-</span> <span class="fu">unique</span>(months)</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Aggregate daily data to monthly means</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>  monthly_temp <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">tapp</span>(data, months, <span class="at">fun =</span> mean, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Set proper time stamps</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>  monthly_dates <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="fu">paste0</span>(unique_months, <span class="st">"-01"</span>))</span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">time</span>(monthly_temp) <span class="ot">&lt;-</span> monthly_dates</span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Calculate zonal statistics</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>  monthly_temp_list <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>  layer_name_to_date <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">month_year =</span> <span class="fu">names</span>(monthly_temp),</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>                               <span class="at">date =</span> monthly_dates)</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>terra<span class="sc">::</span><span class="fu">nlyr</span>(monthly_temp)) {</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>    layer_name <span class="ot">&lt;-</span> <span class="fu">names</span>(monthly_temp)[i]</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(pop_raster)) {</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Ensure correct CRS</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>      terra<span class="sc">::</span><span class="fu">crs</span>(monthly_temp[[i]]) <span class="ot">&lt;-</span> <span class="st">"EPSG:4326"</span></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>      pop_raster_aligned <span class="ot">&lt;-</span> <span class="fu">align_population_to_climate</span>(pop_raster, monthly_temp[[i]])</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>      admin_shp <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(admin_shp, <span class="st">"EPSG:4326"</span>)</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Population-weighted and regular mean</span></span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>      temp_values <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>        monthly_temp[[i]], </span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>        admin_shp, </span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>        <span class="at">fun =</span> <span class="fu">c</span>(<span class="st">'mean'</span>, <span class="st">'weighted_mean'</span>),</span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>        <span class="at">weights =</span> pop_raster_aligned,</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>        <span class="at">append_cols =</span> <span class="cn">TRUE</span></span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>      temp_values<span class="sc">$</span>temperature_celsius <span class="ot">&lt;-</span> temp_values<span class="sc">$</span>mean <span class="sc">-</span> <span class="fl">273.15</span></span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>      temp_values<span class="sc">$</span>temperature_celsius_pop_weighted <span class="ot">&lt;-</span> temp_values<span class="sc">$</span>weighted_mean <span class="sc">-</span> <span class="fl">273.15</span></span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Extract total population for reference</span></span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a>      pop_values <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(</span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>        pop_raster,</span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>        admin_shp,</span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a>        <span class="at">fun =</span> <span class="st">'sum'</span>,</span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a>        <span class="at">append_cols =</span> <span class="cn">TRUE</span></span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>      temp_values<span class="sc">$</span>total_population <span class="ot">&lt;-</span> pop_values<span class="sc">$</span>sum</span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
+<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Regular mean only</span></span>
+<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a>      temp_values <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(</span>
+<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a>        monthly_temp[[i]], </span>
+<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a>        admin_shp, </span>
+<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a>        <span class="st">'mean'</span>,</span>
+<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a>        <span class="at">append_cols =</span> <span class="cn">TRUE</span></span>
+<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a>      temp_values<span class="sc">$</span>temperature_celsius <span class="ot">&lt;-</span> temp_values<span class="sc">$</span>mean <span class="sc">-</span> <span class="fl">273.15</span></span>
+<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb11-59"><a href="#cb11-59" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a>    temp_values<span class="sc">$</span>month_year <span class="ot">&lt;-</span> layer_name</span>
+<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a>    monthly_temp_list[[i]] <span class="ot">&lt;-</span> temp_values <span class="sc">%&gt;%</span> <span class="fu">left_join</span>(layer_name_to_date)</span>
+<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Combine all months</span></span>
+<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a>  data_summary <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, monthly_temp_list)</span>
+<span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(data_summary)</span>
+<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="monthly-precipitation-summary-function" class="level4">
+<h4 class="anchored" data-anchor-id="monthly-precipitation-summary-function">Monthly Precipitation Summary Function</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>precipitation_monthly_summary <span class="ot">&lt;-</span> <span class="cf">function</span>(data, admin_shp, <span class="at">pop_raster =</span> <span class="cn">NULL</span>){</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  dates <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">time</span>(data)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  months <span class="ot">&lt;-</span> <span class="fu">format</span>(dates, <span class="st">"%Y-%m"</span>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  unique_months <span class="ot">&lt;-</span> <span class="fu">unique</span>(months)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Aggregate daily data to monthly sums (not means!)</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  monthly_prec <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">tapp</span>(data, months, <span class="at">fun =</span> sum, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  monthly_dates <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="fu">paste0</span>(unique_months, <span class="st">"-01"</span>))</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">time</span>(monthly_prec) <span class="ot">&lt;-</span> monthly_dates</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>  monthly_prec_list <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>  layer_name_to_date <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">month_year =</span> <span class="fu">names</span>(monthly_prec),</span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>                               <span class="at">date =</span> monthly_dates)</span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>terra<span class="sc">::</span><span class="fu">nlyr</span>(monthly_prec)) {</span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>    layer_name <span class="ot">&lt;-</span> <span class="fu">names</span>(monthly_prec)[i]</span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(pop_raster)) {</span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>      terra<span class="sc">::</span><span class="fu">crs</span>(monthly_prec[[i]]) <span class="ot">&lt;-</span> <span class="st">"EPSG:4326"</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>      pop_raster_aligned <span class="ot">&lt;-</span> <span class="fu">align_population_to_climate</span>(pop_raster, monthly_prec[[i]])</span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>      admin_shp <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(admin_shp, <span class="st">"EPSG:4326"</span>)</span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>      prec_values <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(</span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>        monthly_prec[[i]], </span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>        admin_shp, </span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">fun =</span> <span class="fu">c</span>(<span class="st">'mean'</span>, <span class="st">'weighted_mean'</span>),</span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">weights =</span> pop_raster_aligned,</span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>        <span class="at">append_cols =</span> <span class="cn">TRUE</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>      <span class="co"># Convert to mm</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>      prec_values<span class="sc">$</span>precipitation_mm <span class="ot">&lt;-</span> prec_values<span class="sc">$</span>mean <span class="sc">*</span> <span class="dv">1000</span></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>      prec_values<span class="sc">$</span>precipitation_mm_pop_weighted <span class="ot">&lt;-</span> prec_values<span class="sc">$</span>weighted_mean <span class="sc">*</span> <span class="dv">1000</span></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>      pop_values <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(</span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>        pop_raster,</span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>        admin_shp,</span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>        <span class="at">fun =</span> <span class="st">'sum'</span>,</span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>        <span class="at">append_cols =</span> <span class="cn">TRUE</span></span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>      prec_values<span class="sc">$</span>total_population <span class="ot">&lt;-</span> pop_values<span class="sc">$</span>sum</span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>      prec_values <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(</span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>        monthly_prec[[i]], </span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>        admin_shp, </span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>        <span class="st">'mean'</span>,</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>        <span class="at">append_cols =</span> <span class="cn">TRUE</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>      prec_values<span class="sc">$</span>precipitation_mm <span class="ot">&lt;-</span> prec_values<span class="sc">$</span>mean <span class="sc">*</span> <span class="dv">1000</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>    prec_values<span class="sc">$</span>month_year <span class="ot">&lt;-</span> layer_name</span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>    monthly_prec_list[[i]] <span class="ot">&lt;-</span> prec_values <span class="sc">%&gt;%</span> <span class="fu">left_join</span>(layer_name_to_date)</span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>  data_summary <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, monthly_prec_list)</span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(data_summary)</span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="monthly-relative-humidity-summary-function" class="level4">
+<h4 class="anchored" data-anchor-id="monthly-relative-humidity-summary-function">Monthly Relative Humidity Summary Function</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>rhumidity_monthly_summary <span class="ot">&lt;-</span> <span class="cf">function</span>(data, admin_shp, <span class="at">pop_raster =</span> <span class="cn">NULL</span>){</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  dates <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">time</span>(data)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  months <span class="ot">&lt;-</span> <span class="fu">format</span>(dates, <span class="st">"%Y-%m"</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  unique_months <span class="ot">&lt;-</span> <span class="fu">unique</span>(months)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Aggregate daily data to monthly means</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>  monthly_rh <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">tapp</span>(data, months, <span class="at">fun =</span> mean, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  monthly_dates <span class="ot">&lt;-</span> <span class="fu">as.Date</span>(<span class="fu">paste0</span>(unique_months, <span class="st">"-01"</span>))</span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  terra<span class="sc">::</span><span class="fu">time</span>(monthly_rh) <span class="ot">&lt;-</span> monthly_dates</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>  monthly_rh_list <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>  layer_name_to_date <span class="ot">&lt;-</span> <span class="fu">tibble</span>(<span class="at">month_year =</span> <span class="fu">names</span>(monthly_rh),</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>                               <span class="at">date =</span> monthly_dates)</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>terra<span class="sc">::</span><span class="fu">nlyr</span>(monthly_rh)) {</span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    layer_name <span class="ot">&lt;-</span> <span class="fu">names</span>(monthly_rh)[i]</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> (<span class="sc">!</span><span class="fu">is.null</span>(pop_raster)) {</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>      terra<span class="sc">::</span><span class="fu">crs</span>(monthly_rh[[i]]) <span class="ot">&lt;-</span> <span class="st">"EPSG:4326"</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>      pop_raster_aligned <span class="ot">&lt;-</span> <span class="fu">align_population_to_climate</span>(pop_raster, monthly_rh[[i]])</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>      admin_shp <span class="ot">&lt;-</span> sf<span class="sc">::</span><span class="fu">st_transform</span>(admin_shp, <span class="st">"EPSG:4326"</span>)</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a>      rh_values <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(</span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>        monthly_rh[[i]], </span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>        admin_shp, </span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">fun =</span> <span class="fu">c</span>(<span class="st">'mean'</span>, <span class="st">'weighted_mean'</span>),</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">weights =</span> pop_raster_aligned,</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>        <span class="at">append_cols =</span> <span class="cn">TRUE</span></span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>      rh_values<span class="sc">$</span>rhumidity <span class="ot">&lt;-</span> rh_values<span class="sc">$</span>mean</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a>      rh_values<span class="sc">$</span>rhumidity_pop_weighted <span class="ot">&lt;-</span> rh_values<span class="sc">$</span>weighted_mean</span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>      pop_values <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>        pop_raster,</span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>        admin_shp,</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>        <span class="at">fun =</span> <span class="st">'sum'</span>,</span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>        <span class="at">append_cols =</span> <span class="cn">TRUE</span></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>      rh_values<span class="sc">$</span>total_population <span class="ot">&lt;-</span> pop_values<span class="sc">$</span>sum</span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>    } <span class="cf">else</span> {</span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>      rh_values <span class="ot">&lt;-</span> exactextractr<span class="sc">::</span><span class="fu">exact_extract</span>(</span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>        monthly_rh[[i]], </span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a>        admin_shp, </span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a>        <span class="st">'mean'</span>,</span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>        <span class="at">append_cols =</span> <span class="cn">TRUE</span></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a>      rh_values<span class="sc">$</span>rhumidity <span class="ot">&lt;-</span> rh_values<span class="sc">$</span>mean</span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a>    rh_values<span class="sc">$</span>month_year <span class="ot">&lt;-</span> layer_name</span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a>    monthly_rh_list[[i]] <span class="ot">&lt;-</span> rh_values <span class="sc">%&gt;%</span> <span class="fu">left_join</span>(layer_name_to_date)</span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>  data_summary <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, monthly_rh_list)</span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(data_summary)</span>
+<span id="cb13-59"><a href="#cb13-59" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="applying-the-summary-functions" class="level3">
+<h3 class="anchored" data-anchor-id="applying-the-summary-functions">Applying the Summary Functions</h3>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Prepare district-level shapefile (excluding Thousand Islands)</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>jakarta_district_shp <span class="ot">&lt;-</span> jakarta_admin2_shp <span class="sc">%&gt;%</span> </span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(admin2 <span class="sc">!=</span> <span class="st">"KEPULAUAN SERIBU"</span>)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Visualize the districts</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>jakarta_district_shp <span class="sc">%&gt;%</span> </span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span> </span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_sf</span>() <span class="sc">+</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">"Jakarta Districts (excluding Thousand Islands)"</span>)</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Load population data (adjust paths as needed)</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Population data from LandScan: https://landscan.ornl.gov/</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>processed_pop_province_file <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"data/pop/masked/landscan-idn-admin1-"</span>, <span class="dv">2022</span>, <span class="st">".tif"</span>)</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>pop_province <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(processed_pop_province_file)</span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>processed_pop_district_file <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">"data/pop/masked/landscan-idn-admin2-"</span>, <span class="dv">2022</span>, <span class="st">".tif"</span>)</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>pop_district <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(processed_pop_district_file)</span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a><span class="co"># Load climate rasters from NetCDF files</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>precipitation_file <span class="ot">&lt;-</span> <span class="fu">file.path</span>(dir_data, <span class="st">"download_precipitation_jkt.nc"</span>)</span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>precipitation_raster <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">rast</span>(precipitation_file)</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a><span class="co"># Calculate relative humidity raster</span></span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>relative_humidity_raster <span class="ot">&lt;-</span> <span class="fu">calculate_relative_humidity</span>(temperature_raster, </span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>                                                        dewpoint_temperature_raster)</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply summary functions</span></span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a><span class="co"># Temperature summaries</span></span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>temperature_province_monthly <span class="ot">&lt;-</span> </span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a>  <span class="fu">temperature_monthly_summary</span>(temperature_raster, jakarta_shp, pop_province)</span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a>temperature_district_monthly <span class="ot">&lt;-</span> </span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a>  <span class="fu">temperature_monthly_summary</span>(temperature_raster, jakarta_district_shp, pop_district)</span>
+<span id="cb14-35"><a href="#cb14-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-36"><a href="#cb14-36" aria-hidden="true" tabindex="-1"></a><span class="co"># Precipitation summaries</span></span>
+<span id="cb14-37"><a href="#cb14-37" aria-hidden="true" tabindex="-1"></a>precipitation_province_monthly <span class="ot">&lt;-</span> </span>
+<span id="cb14-38"><a href="#cb14-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">precipitation_monthly_summary</span>(precipitation_raster, jakarta_shp, pop_province)</span>
+<span id="cb14-39"><a href="#cb14-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-40"><a href="#cb14-40" aria-hidden="true" tabindex="-1"></a>precipitation_district_monthly <span class="ot">&lt;-</span> </span>
+<span id="cb14-41"><a href="#cb14-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">precipitation_monthly_summary</span>(precipitation_raster, jakarta_district_shp, pop_district)</span>
+<span id="cb14-42"><a href="#cb14-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-43"><a href="#cb14-43" aria-hidden="true" tabindex="-1"></a><span class="co"># Relative humidity summaries</span></span>
+<span id="cb14-44"><a href="#cb14-44" aria-hidden="true" tabindex="-1"></a>relative_humidity_province_monthly <span class="ot">&lt;-</span> </span>
+<span id="cb14-45"><a href="#cb14-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rhumidity_monthly_summary</span>(relative_humidity_raster, jakarta_shp, pop_province)</span>
+<span id="cb14-46"><a href="#cb14-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-47"><a href="#cb14-47" aria-hidden="true" tabindex="-1"></a>relative_humidity_district_monthly <span class="ot">&lt;-</span> </span>
+<span id="cb14-48"><a href="#cb14-48" aria-hidden="true" tabindex="-1"></a>  <span class="fu">rhumidity_monthly_summary</span>(relative_humidity_raster, jakarta_district_shp, pop_district)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="key-points-and-best-practices" class="level2">
+<h2 class="anchored" data-anchor-id="key-points-and-best-practices">Key Points and Best Practices</h2>
+<section id="variable-selection" class="level3">
+<h3 class="anchored" data-anchor-id="variable-selection">Variable Selection</h3>
+<ul>
+<li>Check available variables using <code>Meta.Variables()</code></li>
+<li>Note whether variables are cumulative (like precipitation) or instantaneous</li>
+<li>Use appropriate aggregation functions (mean for temperature, sum for precipitation)</li>
+</ul>
+</section>
+<section id="time-zones" class="level3">
+<h3 class="anchored" data-anchor-id="time-zones">Time Zones</h3>
+<ul>
+<li>Always specify the correct time zone for your study region</li>
+<li>Use “Etc/GMT+X” format (note the positive sign for eastern longitudes)</li>
+</ul>
+</section>
+<section id="file-management" class="level3">
+<h3 class="anchored" data-anchor-id="file-management">File Management</h3>
+<ul>
+<li>ERA5 downloads create both processed and temporary files</li>
+<li>Consider deleting temporary files to save disk space</li>
+<li>Use descriptive file names to avoid conflicts</li>
+</ul>
+</section>
+<section id="performance-considerations" class="level3">
+<h3 class="anchored" data-anchor-id="performance-considerations">Performance Considerations</h3>
+<ul>
+<li>Precipitation data takes significantly longer to process due to disaggregation</li>
+<li>Consider using high-performance computing for large datasets</li>
+<li>Download data in chunks for very large temporal or spatial extents</li>
+</ul>
+</section>
+<section id="data-quality" class="level3">
+<h3 class="anchored" data-anchor-id="data-quality">Data Quality</h3>
+<ul>
+<li>Always inspect your downloaded data before analysis</li>
+<li>Check temporal coverage and spatial extent</li>
+<li>Verify units and coordinate reference systems</li>
+</ul>
+</section>
+</section>
+<section id="additional-resources" class="level2">
+<h2 class="anchored" data-anchor-id="additional-resources">Additional Resources</h2>
+<ul>
+<li><strong>Population Data</strong>: <a href="https://landscan.ornl.gov/">LandScan Global Population Database</a></li>
+<li><strong>Weighting Methods</strong>: <a href="https://climateestimate.net/content/weighting-schemes.html">Climate Estimate Weighting Schemes</a></li>
+<li><strong>KrigR Documentation</strong>: <a href="https://www.erikkusch.com/courses/krigr/">Official KrigR Tutorial</a></li>
+<li><strong>ERA5 Variables</strong>: Check the Copernicus Climate Data Store for complete variable lists</li>
+</ul>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
+<p>This tutorial provides a foundation for downloading and processing ERA5 climate data using KrigR. The examples focus on Jakarta, Indonesia, but the methods are easily adaptable to other regions and time periods. Remember to:</p>
+<ol type="1">
+<li>Start with small datasets to test your workflow</li>
+<li>Be mindful of download times and server capacity</li>
+<li>Consider population-weighted aggregation for human-relevant analyses</li>
+<li>Always validate your results before conducting analyses</li>
+</ol>
+<p>The combination of ERA5’s comprehensive climate data and KrigR’s processing capabilities provides a powerful toolkit for climate research and applications.</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
