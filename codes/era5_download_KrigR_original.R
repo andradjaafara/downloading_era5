@@ -207,7 +207,7 @@ download_precipitation_jkt <- tryCatch({
 download_dewpoint_temperature_jkt <- tryCatch({
   CDownloadS(
     ## Variable and Data Product
-    Variable = "2m_temperature", # this is air temperature
+    Variable = "2m_dewpoint_temperature", # this is air temperature
     DataSet = "reanalysis-era5-land", # data product from which we want to download
     ## Time-Window
     DateStart = "2022-08-01 00:00:00", # date at which time window opens
