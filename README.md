@@ -1,6 +1,11 @@
 # ERA5 Climate Data Download Tutorial with KrigR
 
-A practical guide for downloading and processing ERA5 climate data using the KrigR package in R based on my tested workflow (up to July 2025). I used KrigR version 0.9.6.2.
+A practical guide for downloading and processing ERA5 climate data using the KrigR package in R based on my tested workflow (up to July 2025). I used R version 4.4.0. Package versions I used:
+- KrigR version 0.9.6.2.
+- tidyverse version 2.0.0
+- lubridate version 1.9.4
+- sf version 1.0-21
+- terra version 1.8-50
 
 ## Overview
 
